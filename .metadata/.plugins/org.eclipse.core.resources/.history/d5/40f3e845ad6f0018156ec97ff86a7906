@@ -1,0 +1,15 @@
+package com.example.bluetooth;
+
+public class SppServer {
+
+	public void start() {
+		// TODO 自动生成的方法存根
+		
+	}
+
+	public void cancel() {
+		// TODO 自动生成的方法存根
+		
+	}
+
+}

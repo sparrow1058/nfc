@@ -1,0 +1,8 @@
+package com.example.nfc;
+
+public class MifareBlock {
+	public int blockIndex;
+	public boolean needRead=true;
+	public boolean needWrite=false;
+	
+}

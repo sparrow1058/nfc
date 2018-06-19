@@ -1,0 +1,12 @@
+package com.example.nfc;
+
+public class MifareClassCard {
+	private int SECTORCOUNT=16;
+	protected String TAG="MifareCardInfo";
+	private MifareSector[] sectors;
+	public MifareClassCard(int sectorSize){
+		sectores=new MifrareSector[sectoreSize];
+		SECTORCOUNT=sectorSize;
+		initializeCard();
+	}
+}

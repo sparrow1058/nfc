@@ -1,0 +1,467 @@
+/*
+Author:chen xu
+Email:chenxupro@163.com
+*/
+
+package com.example.bluetooth;
+
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.io.RandomAccessFile;
+import java.util.ArrayList;
+import java.util.UUID;
+
+import android.os.Bundle;
+import android.os.Handler;
+import android.os.Message;
+import android.app.Activity;
+import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothDevice;
+import android.bluetooth.BluetoothServerSocket;
+import android.bluetooth.BluetoothSocket;
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
+import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
+import android.util.Log;
+import android.view.Menu;
+import android.view.MenuItem;
+import android.view.View;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
+import android.widget.ListView;
+import android.widget.Toast;
+import android.widget.AdapterView.OnItemClickListener;
+
+public class MainActivity extends Activity {
+
+	static final private int MENU_Exit = Menu.FIRST;
+	static final private int MENU_DISCOVER = Menu.FIRST+1;
+	static final private int MENU_DISCOVERABLE = Menu.FIRST+2;
+	static final private int MENU_SWITCH = Menu.FIRST+3;
+	//static final private int MENU_SENDTest = Menu.FIRST+4;
+	static final private int MENU_ScanCard = Menu.FIRST+4;
+	static final private int MENU_ReadCard = Menu.FIRST+5;
+	static final private int MENU_EmulateCard = Menu.FIRST+6;
+	static final private int MENU_NfcDepTarget = Menu.FIRST+7;
+	static final private int MENU_NfcDepInitiator = Menu.FIRST+8;
+	
+	static final String SPP_UUID = "00001101-0000-1000-8000-00805F9B34FB";
+	static final UUID uuid = UUID.fromString(SPP_UUID);
+	static final String tag = "AndroidBlueSppNfc";
+	static final boolean D = true;
+	
+	private int BUFFERLENGTH=1024;
+	//private int BUFFERLENGTH=4096;
+	
+	ListView devList;
+	ArrayList<String> devices = new ArrayList<String>();
+	ArrayAdapter<String> devAdapter;
+	
+	BluetoothAdapter btAdapt;
+	BluetoothSocket btSocket;
+	InputStream btIn = null;
+	OutputStream btOut = null;
+	
+	SppServer sppServer;
+	
+	boolean sppConnected = false;
+    @Override
+    public void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+        
+        devList = (ListView) findViewById(R.id.btlist);
+        devAdapter = new ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, devices);
+        devList.setAdapter(devAdapter);
+        //Get a handle to the default local Bluetooth adapter
+        btAdapt = BluetoothAdapter.getDefaultAdapter();
+        //Use BroadcastReceiver to Get Search Result
+		IntentFilter intent = new IntentFilter();
+		intent.addAction(BluetoothDevice.ACTION_FOUND);
+		intent.addAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED);
+		intent.addAction(BluetoothAdapter.ACTION_SCAN_MODE_CHANGED);
+		intent.addAction(BluetoothAdapter.ACTION_STATE_CHANGED);
+		registerReceiver(bluetoothReceiver, intent);
+		
+		//Searched Bluetooth Devices -> Paired Devices
+		devList.setOnItemClickListener(new OnItemClickListener() {
+			@Override
+			public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+				if (sppConnected)
+					return;
+				String devAddr = ((String)devices.get(position)).split("\n")[1];
+				try {
+					//Create SPP RfcommSocket And SPP Slave Mode
+					btSocket = btAdapt.getRemoteDevice(devAddr).createRfcommSocketToServiceRecord(uuid);
+					btSocket.connect();
+
+					synchronized (getApplicationContext()) {
+						if (sppConnected)
+							return;
+						btServerSocket.close();
+						btIn = btSocket.getInputStream();
+						btOut = btSocket.getOutputStream();
+						conected();
+					}
+					//byte[] data = new byte[]{1,2,3,4,5};
+					//btOut.write(data, 0, 5);
+				} 
+				catch (IOException e) 
+				{
+					e.printStackTrace();
+					sppConnected = false;
+					try {
+						btSocket.close();
+					} catch (IOException e1) {
+						e1.printStackTrace();
+					}
+					btSocket = null;
+					Toast.makeText(getApplicationContext(), "SPP Connect Error!", Toast.LENGTH_SHORT).show();
+				}
+			}
+		});	
+		
+		//SPP Service
+		sppServer = new SppServer();
+		sppServer.start();
+    }
+    
+	@Override
+	protected void onDestroy() {
+		super.onDestroy();
+		if (sppServer != null)
+			sppServer.cancel();
+	    this.unregisterReceiver(bluetoothReceiver);
+	    if (btIn != null) {
+	    	try {
+	    		btSocket.close();
+	    		btServerSocket.close();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+	    }
+		android.os.Process.killProcess(android.os.Process.myPid());
+	}
+	
+	Handler btHandler = new Handler() {
+		public void handleMessage(Message m) {
+			//Update UI or other operation
+		}
+	};
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+    	menu.add(0, MENU_Exit, 0, "Exit");
+    	menu.add(0, MENU_DISCOVER, 1, "DISCOVER");
+    	menu.add(0, MENU_DISCOVERABLE, 2, "DISCOVERABLE");
+    	menu.add(0, MENU_SWITCH, 3, "SWITCH");
+    	//menu.add(0, MENU_SENDTest, 4, "SENDTest");
+    	menu.add(0, MENU_ScanCard, 4, "ScanCardUid");
+    	menu.add(0, MENU_ReadCard, 5, "ReadCardInfo");
+    	menu.add(0, MENU_EmulateCard, 6, "EmulateCardUid");
+    	menu.add(0, MENU_NfcDepTarget, 7, "NfcDepTarget");
+    	menu.add(0, MENU_NfcDepInitiator, 8, "NfcDepInitiator");
+        return true;
+    }
+    @Override 
+    public boolean onOptionsItemSelected(MenuItem item) 
+    {
+    	switch(item.getItemId()) 
+    	{
+    		case (MENU_Exit):
+    			MainActivity.this.finish();
+				android.os.Process.killProcess(android.os.Process.myPid());
+				System.exit(0);
+    			break;
+    		case (MENU_DISCOVER):
+				btAdapt.cancelDiscovery();
+				btAdapt.startDiscovery();
+    			break;
+    		case (MENU_DISCOVERABLE):
+				Intent discoverableIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE);
+				discoverableIntent.putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 100);
+				startActivity(discoverableIntent);
+    			break;
+    		case (MENU_SWITCH):
+				if (btAdapt.enable()) {
+					btAdapt.disable();
+				} else {
+					Intent intent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
+					startActivity(intent);
+				}
+    			break;
+    		//case (MENU_SENDTest):
+    		case (MENU_ScanCard):
+    			/*
+				byte[] TestData0={0x55,0x55,0x00,0x00,0x00};
+				byte[] TestData1={0x00,0x00,(byte) 0xff,0x03,(byte) 0xfd,(byte) 0xd4,0x14,0x01,0x17,0x00};
+				try {
+					btOut.write(TestData0);
+					btOut.write(TestData1);
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+				*/
+				//------------------------------------------------
+				//TODO
+				SendBufInJava=new byte[BUFFERLENGTH];
+				RecvBufInJava=new byte[BUFFERLENGTH];
+				RecvBufInJavaOrigin=new byte[BUFFERLENGTH];
+				SendRecvBufLengthInJava=new int[2];
+				//SendBufInJava[0]=0x11;
+				//SendBufInJava[1]=0x22;
+				//RecvBufInJava[0]=0x33;
+				//RecvBufInJava[1]=0x44;
+				//PassBufferFieldsToCLayer(SendBufInJava,RecvBufInJava);
+			//	JavaNfcList(); 
+				//------------------------------------------------
+    			break;
+    		case (MENU_EmulateCard):
+				SendBufInJava=new byte[BUFFERLENGTH];
+				RecvBufInJava=new byte[BUFFERLENGTH];
+				RecvBufInJavaOrigin=new byte[BUFFERLENGTH];
+				SendRecvBufLengthInJava=new int[2];
+    		//	NfcEmulateUid();
+    			break;
+    		case (MENU_ReadCard):
+				SendBufInJava=new byte[BUFFERLENGTH];
+				RecvBufInJava=new byte[BUFFERLENGTH];
+				RecvBufInJavaOrigin=new byte[BUFFERLENGTH];
+				SendRecvBufLengthInJava=new int[2];
+    		//	NfcReadCardInfo();
+    			GetNfcReadCardInfoResult();
+    			break;
+    		case (MENU_NfcDepTarget):
+				SendBufInJava=new byte[BUFFERLENGTH];
+				RecvBufInJava=new byte[BUFFERLENGTH];
+				RecvBufInJavaOrigin=new byte[BUFFERLENGTH];
+				SendRecvBufLengthInJava=new int[2];
+			//	NfcDepTarget();
+				break;
+    		case (MENU_NfcDepInitiator):
+				SendBufInJava=new byte[BUFFERLENGTH];
+				RecvBufInJava=new byte[BUFFERLENGTH];
+				RecvBufInJavaOrigin=new byte[BUFFERLENGTH];
+				SendRecvBufLengthInJava=new int[2];
+			//	NfcDepInitiator();
+				break;
+    	}
+    	return super.onOptionsItemSelected(item);
+	} 
+    
+	private BroadcastReceiver bluetoothReceiver = new BroadcastReceiver() {
+
+		public void onReceive(Context context, Intent intent) {
+			String action = intent.getAction();
+			Bundle b = intent.getExtras();
+			Object[] lstName = b.keySet().toArray();
+
+			//Show details about Received Msgs
+			for (int i = 0; i < lstName.length; i++) {
+				String keyName = lstName[i].toString();
+				Log.i(keyName, String.valueOf(b.get(keyName)));
+			}
+			//Show Devices' MAC Address
+			if (BluetoothDevice.ACTION_FOUND.equals(action)) {
+				BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
+				//String str = "Device Name:"+device.getName() + "\nMac Address:" + device.getAddress();
+				String str = device.getName() + "\n" + device.getAddress();
+				if (devices.indexOf(str) == -1)   //To avoid add again
+					devices.add(str); // Get Device's Name And Mac Address
+				devAdapter.notifyDataSetChanged();
+			} 
+			else if (BluetoothAdapter.ACTION_STATE_CHANGED.equals(action)) {
+			}
+		}
+	};
+	
+	private void conected() {
+		sppConnected = true;
+		//new SppReceiver(btIn).start();
+		devList.setClickable(false);
+		sppServer = null;
+	}
+
+	private void disconnect() {
+		devList.setClickable(true);
+		sppConnected = false;
+		btIn = null;
+		btOut = null;
+		sppServer = new SppServer();
+		sppServer.start();
+	}
+    private BluetoothServerSocket btServerSocket;
+	private class SppServer extends Thread {
+        public SppServer() {
+        	try {
+				btServerSocket = btAdapt.listenUsingRfcommWithServiceRecord("SPP", uuid);
+			} catch (IOException e) {
+				e.printStackTrace();
+				btServerSocket = null;
+			}
+        }
+        public void run() {
+        	BluetoothSocket bs = null;
+        	if (btServerSocket == null) {
+        		Log.e(tag, "ServerSocket null");
+        		return;
+        	}
+        	try {
+				bs = btServerSocket.accept();
+				synchronized (getApplicationContext()) {
+					if (sppConnected)
+						return;
+					Log.i(tag, "Devices Name: " + bs.getRemoteDevice().getName());
+					btIn = bs.getInputStream();
+					btOut = bs.getOutputStream();
+					conected();
+				}
+			} catch (IOException e) {
+				e.printStackTrace();
+				Log.d(tag, "ServerSoket accept failed");
+			}
+			if (D) 
+				Log.i(tag, "End Bluetooth SPP Server");
+        }
+        
+        public void cancel() {
+        	if (btServerSocket == null)
+        		return;
+        	try {
+				btServerSocket.close();
+			} catch (IOException e) {
+				e.printStackTrace();
+				Log.e(tag, "close ServerSocket failed");
+			}
+        }
+	}
+	
+	private class SppReceiver extends Thread {
+		private InputStream input = null;
+		public SppReceiver(InputStream in) {
+			input = in;
+			Log.i(tag, "SppReceiver");
+		}
+		public void run() {
+			byte[] data = new byte[1024];
+			int length = 0;
+			if (input == null) {
+				Log.d(tag, "InputStream null");
+				return;
+			}
+			while (true) {
+				try {
+					length = input.read(data);
+					Log.i(tag, "SPP receiver");
+					if (length > 0) {
+						msg="";
+						for(int i=0;i<length;i++)
+						{
+							msg+=Integer.toHexString(data[i]&0xFF)+" ";
+						}
+						Log.i(tag, "R: " + msg);
+						//btHandler.sendEmptyMessage(0);
+					}
+				} catch (IOException e) {
+					Log.e(tag, "disconnect");
+					disconnect();
+				}
+			}
+		}
+	}
+	
+	private String msg = "";
+	
+	private void ForcePassBufferFieldsToCLayer()
+	{
+		//PassBufferFieldsToCLayer(SendBufInJava,RecvBufInJava,SendRecvBufLengthInJava);
+	}
+	
+	private void ForceFlushOutputBuffer()
+	{
+		try {
+			btOut.flush();
+		} 
+		catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+	
+	private void ForceBlueSppSend()
+	{
+		try {
+			btOut.write(SendBufInJava, 0, SendRecvBufLengthInJava[0]);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+	
+	private void ForceBlueSppRecv()
+	{
+		int received_bytes_count = 0;
+		//int available_bytes_count = 0;
+		int res = 0;
+		int expected_bytes_count = SendRecvBufLengthInJava[1];
+		try {
+			//Log.d(tag, "expected_bytes_count:"+String.valueOf(expected_bytes_count)+)
+			//int RecvLength = btIn.read(RecvBufInJava);
+			//btIn.read(RecvBufInJava, offset, length)
+			//SendRecvBufLengthInJava[1]=RecvLength;
+			do{
+				//res = btIn.read(RecvBufInJava, received_bytes_count, Math.min(available_bytes_count, (expected_bytes_count - received_bytes_count)));
+				res = btIn.read(RecvBufInJavaOrigin, received_bytes_count, expected_bytes_count-received_bytes_count);
+				if(res==-1)
+				{
+					SendRecvBufLengthInJava[1]=-1;
+					return;
+				}
+				received_bytes_count += res;
+			}while(expected_bytes_count > received_bytes_count);
+		} 
+		catch (IOException e) {
+			e.printStackTrace();
+		}
+		
+		for(int i=0;i<expected_bytes_count;i++)
+		{
+			RecvBufInJava[i]=(byte) (RecvBufInJavaOrigin[i]&0xFF);
+		}
+	}
+	
+	private void ForceShowNfcListResultString()
+	{
+		//String Tmp_PHYSCAL_CARD_NO = GetJavaNfcListResult();
+		//Toast.makeText(getApplicationContext(), Tmp_PHYSCAL_CARD_NO, Toast.LENGTH_LONG).show();
+	}
+	
+	private void GetNfcReadCardInfoResult()
+	{
+        RandomAccessFile randomFile = null;
+        try {
+            randomFile = new RandomAccessFile("/mnt/sdcard/NfcReadCardInfoResult.dump", "r");
+        } 
+        catch (IOException e) {
+            e.printStackTrace();
+        } 
+        finally {
+            if (randomFile != null) {
+                try {
+                    randomFile.close();
+                } catch (IOException e1) {
+                }
+            }
+        }
+	}
+	
+    private byte[] SendBufInJava;
+    private int[] SendRecvBufLengthInJava;
+    private byte[] RecvBufInJava;
+    private byte[] RecvBufInJavaOrigin;
+    
+
+}

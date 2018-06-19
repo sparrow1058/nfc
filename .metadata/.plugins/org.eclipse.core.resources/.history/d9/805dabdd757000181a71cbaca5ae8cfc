@@ -1,0 +1,26 @@
+package com.example.nfc;
+
+import android.nfc.tech.MifareClassic;
+
+public class Mifarekey {
+	private byte key[];
+	public Mifarekey(byte[] keyValue){
+		if(keyValue==null||keyValue.length!=6){
+			throw new IllegalArgumentException("Invaild key");
+		}
+		 key = new byte[6];
+		System.arraycopy(keyValue, 0, keyValue, 0, key.length);
+	}
+	public Mifarekey(){
+		key=MifareClassic.KEY_DEFAULT;
+	}
+	public byte[] getkey(){
+		return key;
+	}
+	public void setKey(byte[] keyValue){
+		if(keyValue==null|| keyValue.length!=6){
+			throw new IllegalArgumentException("Invaild key");
+		}
+	}
+
+}
