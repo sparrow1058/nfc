@@ -1,0 +1,17 @@
+package com.example.hbp;
+
+public class hbpjni {
+	///javah -classpath  . -jni   com.example.rfid.Jni
+		static{
+			System.loadLibrary("rfid");
+		}
+		public native int RFInit();
+		public native void RFSetDevice(String str);
+		public native byte[] RFReadBlock(int block);
+		public native int RFWriteBlock(int block,byte[] buf);
+		public native byte[] RFGetUid();
+		public native boolean RFInputKey(byte[] key);
+		public native boolean RFChangeKey(int sector,byte[] oldKey,byte[] newKey);
+		public native int KillRFThread();
+
+}

@@ -2,9 +2,9 @@
 <section name="Workbench">
 	<section name="org.eclipse.ui.texteditor.FindReplaceDialog_dialogBounds">
 		<item value="251" key="DIALOG_WIDTH"/>
-		<item value="149" key="DIALOG_Y_ORIGIN"/>
+		<item value="110" key="DIALOG_Y_ORIGIN"/>
 		<item value="399" key="DIALOG_HEIGHT"/>
-		<item value="986" key="DIALOG_X_ORIGIN"/>
+		<item value="1141" key="DIALOG_X_ORIGIN"/>
 		<item value="1|微软雅黑|9.0|0|WINDOWS|1|-12|0|0|0|400|0|0|0|1|0|0|0|0|微软雅黑" key="DIALOG_FONT_NAME"/>
 	</section>
 	<section name="org.eclipse.ui.texteditor.FindReplaceDialog">
@@ -12,19 +12,20 @@
 		<item value="false" key="isRegEx"/>
 		<item value="false" key="casesensitive"/>
 		<item value="false" key="incremental"/>
-		<item value="false" key="wholeword"/>
-		<item value="testByte" key="selection"/>
+		<item value="true" key="wholeword"/>
+		<item value="CreateReadThread" key="selection"/>
 		<list key="findhistory">
-			<item value="testByte"/>
-			<item value="showAlert"/>
-			<item value="VerticalSeekBar"/>
-			<item value="AppMain"/>
-			<item value="disconnected"/>
-			<item value="disconnect"/>
-			<item value="connect"/>
-			<item value="&#x09;protected void connected() {"/>
+			<item value="CreateReadThread"/>
+			<item value="loopThread"/>
+			<item value="messenger"/>
+			<item value="hanleRFMessage"/>
+			<item value="rfidThread"/>
+			<item value="registerWriteReceiver"/>
+			<item value="DEV_ADDR"/>
+			<item value="spinner"/>
 		</list>
 		<list key="replacehistory">
+			<item value=""/>
 		</list>
 	</section>
 </section>

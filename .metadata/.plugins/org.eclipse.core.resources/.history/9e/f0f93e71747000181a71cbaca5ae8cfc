@@ -1,8 +1,0 @@
-package com.example.nfc;
-
-public class Mifarekey {
-	public Mifarekey(byte[] keyValue){
-		
-	}
-
-}

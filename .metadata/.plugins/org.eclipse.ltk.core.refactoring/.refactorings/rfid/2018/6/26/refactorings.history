@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<session version="1.0">
+<refactoring comment="将类型“com.example.rfid.jni”重命名为“Jni”&#x0D;&#x0A;－ 原始项目：“rfid”&#x0D;&#x0A;－ 原始元素：“com.example.rfid.jni”&#x0D;&#x0A;－ 重命名的元素：“com.example.rfid.Jni”&#x0D;&#x0A;－ 更新对已重构元素的引用&#x0D;&#x0A;－ 更新注释和字符串中出现的文本" description="重命名类型“jni”" flags="589830" id="org.eclipse.jdt.ui.rename.type" input="/src&lt;com.example.rfid{jni.java[jni" matchStrategy="1" name="Jni" qualified="false" references="true" similarDeclarations="false" stamp="1530174997694" textual="false" version="1.0"/>
+</session>

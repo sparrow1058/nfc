@@ -1,5 +1,0 @@
-package com.example.nfc;
-
-public class Converter {
-	private static final byte[] HEX_CHAR_TABLE={(byte)'0',
-}

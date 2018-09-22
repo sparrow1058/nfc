@@ -1,7 +1,0 @@
-package com.example.nfc;
-
-public class MifareClassCard {
-	public MifareClassCard(int sectorSize){
-		
-	}
-}
